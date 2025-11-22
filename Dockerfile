@@ -1,0 +1,52 @@
+# ScrapingWeb Backend - Dockerfile
+FROM python:3.11-slim
+
+# Variables de entorno
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Crear directorio de trabajo
+WORKDIR /app
+
+# Instalar dependencias del sistema para PostgreSQL, Selenium, Redis y compilación
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    postgresql-client \
+    libpq-dev \
+    wget \
+    gnupg \
+    unzip \
+    curl \
+    redis-tools \
+    chromium \
+    chromium-driver \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar requirements
+COPY requirements.txt .
+
+# Instalar dependencias Python
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
+
+# Descargar modelos de spaCy y NLTK
+RUN python -m spacy download es_core_news_sm && \
+    python -c "import nltk; nltk.download('vader_lexicon'); nltk.download('punkt'); nltk.download('stopwords')"
+
+# Copiar código de la aplicación
+COPY . .
+
+# Crear directorios necesarios
+RUN mkdir -p exports alembic/versions
+
+# Exponer puerto
+EXPOSE 8000
+
+# Script de inicio
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
